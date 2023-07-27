@@ -1,9 +1,12 @@
 package main
 
 import (
-	"github.com/RaymondCode/simple-demo/core"
-	"github.com/RaymondCode/simple-demo/global"
-	"github.com/RaymondCode/simple-demo/service"
+	"log"
+
+	"github.com/RaymondCode/simple-tok/core"
+	"github.com/RaymondCode/simple-tok/global"
+	"github.com/RaymondCode/simple-tok/models"
+	"github.com/RaymondCode/simple-tok/service"
 	"github.com/gin-gonic/gin"
 )
 
@@ -12,12 +15,28 @@ func main() {
 	core.InitConfig()
 	// 初始化数据库
 	global.DB = core.InitGorm()
+	// 生成数据库表结构
+	// Makemigrations()
 
 	go service.RunMessageServer()
-
 	r := gin.Default()
-
 	initRouter(r)
-
 	r.Run() // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
+}
+
+// 生成数据表
+func Makemigrations() {
+	err := global.DB.Set("gorm:table_options", "ENGINE=InnoDB").AutoMigrate(
+		&models.User{},
+		&models.Video{},
+		&models.Message{},
+		&models.Comment{},
+		&models.MessagePushEvent{},
+		&models.MessageSendEvent{},
+	)
+	if err != nil {
+		log.Fatalln("生成数据库表结构失败")
+		return
+	}
+	log.Fatalln("生成数据库表结构成功！")
 }

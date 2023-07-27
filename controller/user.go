@@ -1,9 +1,15 @@
 package controller
 
 import (
-	"github.com/gin-gonic/gin"
+	"errors"
+	"fmt"
 	"net/http"
 	"sync/atomic"
+
+	"github.com/RaymondCode/simple-tok/global"
+	"github.com/RaymondCode/simple-tok/models"
+	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // usersLoginInfo use map to store user info, and key is username+password for demo
@@ -38,22 +44,30 @@ func Register(c *gin.Context) {
 
 	token := username + password
 
-	if _, exist := usersLoginInfo[token]; exist {
+	fmt.Println(token)
+
+	// 判断数据库中是否存在该用户
+	err := global.DB.Where("name = ?", username).First(&User{})
+	if err == nil {
 		c.JSON(http.StatusOK, UserLoginResponse{
 			Response: Response{StatusCode: 1, StatusMsg: "User already exist"},
 		})
 	} else {
 		atomic.AddInt64(&userIdSequence, 1)
-		newUser := User{
-			Id:   userIdSequence,
-			Name: username,
+		newUser := models.User{
+			Name:     username,
+			Password: password,
 		}
-		usersLoginInfo[token] = newUser
+		// 将用户信息存入数据库
+		global.DB.Create(&newUser)
+		fmt.Println(newUser.Id)
 		c.JSON(http.StatusOK, UserLoginResponse{
 			Response: Response{StatusCode: 0},
-			UserId:   userIdSequence,
+			UserId:   newUser.Id,
 			Token:    username + password,
 		})
+		// 将用户信息存入内存 其实需要存入redis
+		// usersLoginInfo[token] = newUser
 	}
 }
 
@@ -63,15 +77,23 @@ func Login(c *gin.Context) {
 
 	token := username + password
 
-	if user, exist := usersLoginInfo[token]; exist {
+	// 判断数据库中是否存在该用户
+	var user models.User
+	err := global.DB.Where("name = ?", username).First(&user).Error
+	fmt.Println(user)
+	if err == nil {
 		c.JSON(http.StatusOK, UserLoginResponse{
 			Response: Response{StatusCode: 0},
 			UserId:   user.Id,
 			Token:    token,
 		})
-	} else {
+	} else if errors.Is(err, gorm.ErrRecordNotFound) {
 		c.JSON(http.StatusOK, UserLoginResponse{
 			Response: Response{StatusCode: 1, StatusMsg: "User doesn't exist"},
+		})
+	} else {
+		c.JSON(http.StatusOK, UserLoginResponse{
+			Response: Response{StatusCode: 1, StatusMsg: err.Error()},
 		})
 	}
 }

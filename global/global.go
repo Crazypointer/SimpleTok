@@ -1,7 +1,7 @@
 package global
 
 import (
-	"github.com/RaymondCode/simple-demo/config"
+	"github.com/RaymondCode/simple-tok/config"
 	"gorm.io/gorm"
 )
 
