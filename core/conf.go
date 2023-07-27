@@ -5,8 +5,8 @@ import (
 	"io/ioutil"
 	"log"
 
-	"github.com/RaymondCode/simple-tok/config"
-	"github.com/RaymondCode/simple-tok/global"
+	"github.com/Crazypointer/simple-tok/config"
+	"github.com/Crazypointer/simple-tok/global"
 	"gopkg.in/yaml.v3"
 )
 

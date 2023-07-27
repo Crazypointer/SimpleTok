@@ -3,8 +3,8 @@ package service
 import (
 	"fmt"
 
-	"github.com/RaymondCode/simple-tok/global"
-	"github.com/RaymondCode/simple-tok/models"
+	"github.com/Crazypointer/simple-tok/global"
+	"github.com/Crazypointer/simple-tok/models"
 )
 
 func GetFeedList() []models.Video {

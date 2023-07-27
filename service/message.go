@@ -7,7 +7,7 @@ import (
 	"net"
 	"sync"
 
-	"github.com/RaymondCode/simple-tok/models"
+	"github.com/Crazypointer/simple-tok/models"
 )
 
 var chatConnMap = sync.Map{}

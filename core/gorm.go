@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/RaymondCode/simple-tok/global"
+	"github.com/Crazypointer/simple-tok/global"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )

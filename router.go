@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/RaymondCode/simple-tok/controller"
+	"github.com/Crazypointer/simple-tok/controller"
 	"github.com/gin-gonic/gin"
 )
 

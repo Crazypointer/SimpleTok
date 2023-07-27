@@ -1,4 +1,4 @@
-module github.com/RaymondCode/simple-tok
+module github.com/Crazypointer/simple-tok
 
 go 1.17
 

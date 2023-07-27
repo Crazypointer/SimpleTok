@@ -1,7 +1,7 @@
 package global
 
 import (
-	"github.com/RaymondCode/simple-tok/config"
+	"github.com/Crazypointer/simple-tok/config"
 	"gorm.io/gorm"
 )
 

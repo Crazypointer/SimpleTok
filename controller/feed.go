@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/RaymondCode/simple-tok/models"
-	"github.com/RaymondCode/simple-tok/service"
+	"github.com/Crazypointer/simple-tok/models"
+	"github.com/Crazypointer/simple-tok/service"
 	"github.com/gin-gonic/gin"
 )
 
