@@ -1,4 +1,4 @@
-# simple-tok
+# simple-demo
 
 ## 抖音项目服务端简单示例
 
@@ -7,7 +7,7 @@
 工程无其他依赖，直接编译运行即可
 
 ```shell
-go build && ./simple-tok
+go build && ./simple-demo
 ```
 
 ### 功能说明
