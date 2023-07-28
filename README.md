@@ -8,6 +8,9 @@
 
 ```shell
 go build && ./simple-demo
+
+m1芯片开发 进行交叉编译成Linux amd64版本
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build
 ```
 
 ### 功能说明

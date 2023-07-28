@@ -15,7 +15,8 @@ func main() {
 	core.InitConfig()
 	// 初始化数据库
 	global.DB = core.InitGorm()
-	// 生成数据库表结构
+
+	// 生成数据库表结构 第一次运行项目 或 修改表结构 时解开注释
 	// Makemigrations()
 
 	go service.RunMessageServer()
