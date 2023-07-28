@@ -8,6 +8,7 @@ type Response struct {
 type Video struct {
 	Id            int64  `json:"id,omitempty" gorm:"primary_key, AUTO_INCREMENT"`        // 视频唯一标识
 	Title         string `json:"title"`                                                  // 视频标题
+	HashTag       string `json:"hash_tag,omitempty"`                                     // 视频hash tag 避免重复上传
 	AuthorID      int64  `json:"author_id,omitempty"`                                    // 视频作者id
 	Author        *User  `json:"author" gorm:"foreignkey:AuthorID"`                      // 视频作者信息
 	PlayUrl       string `json:"play_url,omitempty"`                                     // 视频播放地址
@@ -15,7 +16,6 @@ type Video struct {
 	FavoriteCount int64  `json:"favorite_count,omitempty"`                               // 视频的点赞总数
 	CommentCount  int64  `json:"comment_count,omitempty"`                                // 视频的评论总数
 	IsFavorite    bool   `json:"is_favorite,omitempty" gorm:"type:tinyint(1);default:0"` // true-已点赞，false-未点赞
-	// 视频标题
 }
 
 type Comment struct {
@@ -33,12 +33,12 @@ type User struct {
 	IsFollow        bool   `json:"is_follow,omitempty" gorm:"type:tinyint(1);default:0"` //true-已关注，false-未关注
 	Avatar          string `json:"avatar"`                                               // 用户头像
 	BackgroundImage string `json:"background_image"`                                     // 用户个人页顶部大图
-	FavoriteCount   int64  `json:"favorite_count"`                                       // 喜欢数
-	FollowCount     int64  `json:"follow_count"`                                         // 关注总数
-	FollowerCount   int64  `json:"follower_count"`                                       // 粉丝总数
+	FavoriteCount   int64  `json:"favorite_count" gorm:"default:0"`                      // 喜欢数
+	FollowCount     int64  `json:"follow_count" gorm:"default:0"`                        // 关注总数
+	FollowerCount   int64  `json:"follower_count" gorm:"default:0"`                      // 粉丝总数
 	Signature       string `json:"signature"`                                            // 个人简介
-	TotalFavorited  string `json:"total_favorited"`                                      // 获赞数量
-	WorkCount       int64  `json:"work_count"`                                           // 作品数
+	TotalFavorited  int    `json:"total_favorited" gorm:"default:0"`                     // 获赞数量
+	WorkCount       int64  `json:"work_count" gorm:"default:0"`                          // 作品数
 }
 
 type Message struct {

@@ -39,9 +39,20 @@ func Register(c *gin.Context) {
 			Response: Response{StatusCode: 1, StatusMsg: "User already exist"},
 		})
 	} else {
+		//为新用户创建随机头像
+		avatar := "https://picsum.photos/200"
+		// 用户背景图
+		background := "https://picsum.photos/seed/picsum/200/300"
+
+		// 随机生成个性签名
+		signature := "这个人很懒，什么都没有留下"
+
 		newUser := models.User{
-			Name:     username,
-			Password: password,
+			Name:            username,
+			Password:        password,
+			Avatar:          avatar,
+			BackgroundImage: background,
+			Signature:       signature,
 		}
 		// 将用户信息存入数据库
 		global.DB.Create(&newUser)

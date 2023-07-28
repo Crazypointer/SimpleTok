@@ -2,6 +2,7 @@ package controller
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"path/filepath"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/Crazypointer/simple-tok/global"
 	"github.com/Crazypointer/simple-tok/models"
 	"github.com/Crazypointer/simple-tok/service"
+	"github.com/Crazypointer/simple-tok/utils"
 	"github.com/gin-gonic/gin"
 )
 
@@ -40,11 +42,43 @@ func Publish(c *gin.Context) {
 	now := time.Duration(time.Now().UnixNano())
 	// 生成文件名
 	finalName := fmt.Sprintf("%d_%d_%s", user.Id, now, filename)
+	fmt.Println("finalName:", finalName)
 
 	playUrl := ""
-	//TODO: 校验Hash值，防止重复上传
-	//TODO: 数据库中存储Hash值，防止重复上传
-	//TODO: 数据表Vieos中增加hash字段，用于存储Hash值
+	fmt.Println("playUrl:", playUrl)
+	// 计算Hash值
+	// 读取文件内容
+	f, err := data.Open()
+	if err != nil {
+		c.JSON(http.StatusOK, Response{
+			StatusCode: 1,
+			StatusMsg:  err.Error(),
+		})
+		return
+	}
+	byteData, err := io.ReadAll(f)
+	if err != nil {
+		c.JSON(http.StatusOK, Response{
+			StatusCode: 1,
+			StatusMsg:  err.Error(),
+		})
+		return
+	}
+
+	videoHash := utils.Md5(byteData)
+	fmt.Println("videoHash:", videoHash)
+	//TODO: 校验Hash值，数据库中存储Hash值，防止重复上传
+	// 查询数据库中是否存在该Hash值
+	var video models.Video
+	err = global.DB.Where("hash_tag = ?", videoHash).First(&video).Error
+	if err == nil {
+		// 该视频已经存在
+		c.JSON(http.StatusOK, Response{
+			StatusCode: 1,
+			StatusMsg:  "Video already exists",
+		})
+		return
+	}
 
 	// 本地存储
 	if global.Config.Local.Enable {
@@ -65,6 +99,7 @@ func Publish(c *gin.Context) {
 	newVideo := models.Video{
 		AuthorID: user.Id,
 		PlayUrl:  playUrl,
+		HashTag:  videoHash,
 	}
 	global.DB.Create(&newVideo)
 	c.JSON(http.StatusOK, Response{
