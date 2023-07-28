@@ -29,15 +29,15 @@ type Comment struct {
 type User struct {
 	Id              int64  `json:"id,omitempty" gorm:"primary_key"`                      //用户id
 	Name            string `json:"name,omitempty" gorm:"unique_index"`                   // 用户名 唯一
-	Password        string `json:"password" gorm:"not null, -"`                          // 密码
+	Password        string `json:"-" gorm:"not null"`                                    // 密码
 	IsFollow        bool   `json:"is_follow,omitempty" gorm:"type:tinyint(1);default:0"` //true-已关注，false-未关注
 	Avatar          string `json:"avatar"`                                               // 用户头像
 	BackgroundImage string `json:"background_image"`                                     // 用户个人页顶部大图
-	FavoriteCount   int64  `json:"favorite_count" gorm:"default:0"`                      // 喜欢数
+	FavoriteCount   int64  `json:"favorite_count" gorm:"default:0"`                      // 喜欢作品数
 	FollowCount     int64  `json:"follow_count" gorm:"default:0"`                        // 关注总数
 	FollowerCount   int64  `json:"follower_count" gorm:"default:0"`                      // 粉丝总数
 	Signature       string `json:"signature"`                                            // 个人简介
-	TotalFavorited  int    `json:"total_favorited" gorm:"default:0"`                     // 获赞数量
+	TotalFavorited  int    `json:"total_favorited" gorm:"default:0"`                     // 总获赞数量
 	WorkCount       int64  `json:"work_count" gorm:"default:0"`                          // 作品数
 }
 
