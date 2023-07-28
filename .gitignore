@@ -23,3 +23,4 @@ go.work
 .idea
 .vscode
 simple-demo
+.DS_Store

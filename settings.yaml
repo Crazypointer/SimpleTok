@@ -5,3 +5,15 @@ mysql:
   password: 12345678
   db: simple_tok
 
+server:
+  base_url: "http://127.0.0.1" # 填写服务器的IP地址或域名
+
+cos:
+  bucket_name: simple-Name-8888888
+  cos_region: ap-chengdu
+  secretid: AKID1*******************
+  secretkey: scE2rX********************
+  cos_url: "https://simple-Name-88888888.cos.ap-chengdu.myqcloud.com" # 填写COS的域名
+
+local:
+  enable: false # 是否启用本地存储

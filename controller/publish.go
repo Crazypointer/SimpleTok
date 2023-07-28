@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"time"
 
 	"github.com/Crazypointer/simple-tok/global"
 	"github.com/Crazypointer/simple-tok/models"
+	"github.com/Crazypointer/simple-tok/service"
 	"github.com/gin-gonic/gin"
 )
 
@@ -32,29 +34,42 @@ func Publish(c *gin.Context) {
 		})
 		return
 	}
-
-	filename := filepath.Base(data.Filename)
 	user := usersLoginInfo[token]
-	finalName := fmt.Sprintf("%d_%s", user.Id, filename)
-	saveFile := filepath.Join("./public/", finalName)
-	println(saveFile)
-	if err := c.SaveUploadedFile(data, saveFile); err != nil {
-		c.JSON(http.StatusOK, Response{
-			StatusCode: 1,
-			StatusMsg:  err.Error(),
-		})
-		return
+	filename := filepath.Base(data.Filename)
+	//获取当前时间
+	now := time.Duration(time.Now().UnixNano())
+	// 生成文件名
+	finalName := fmt.Sprintf("%d_%d_%s", user.Id, now, filename)
+
+	playUrl := ""
+	//TODO: 校验Hash值，防止重复上传
+	//TODO: 数据库中存储Hash值，防止重复上传
+	//TODO: 数据表Vieos中增加hash字段，用于存储Hash值
+
+	// 本地存储
+	if global.Config.Local.Enable {
+		saveFile := filepath.Join("./public/", finalName)
+		if err := c.SaveUploadedFile(data, saveFile); err != nil {
+			c.JSON(http.StatusOK, Response{
+				StatusCode: 1,
+				StatusMsg:  err.Error(),
+			})
+			return
+		}
+		playUrl = global.Config.Server.BaseUrl + "/static/" + finalName
+	} else {
+		// 上传到COS
+		playUrl = service.Upload2Cos(data, finalName)
 	}
 	// 将视频信息存入数据库
 	newVideo := models.Video{
 		AuthorID: user.Id,
-		PlayUrl:  "http://localhost:8080/static/" + finalName,
+		PlayUrl:  playUrl,
 	}
 	global.DB.Create(&newVideo)
-
 	c.JSON(http.StatusOK, Response{
 		StatusCode: 0,
-		StatusMsg:  finalName + " uploaded successfully",
+		StatusMsg:  playUrl + " uploaded successfully",
 	})
 }
 
