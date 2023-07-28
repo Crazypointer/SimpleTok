@@ -30,6 +30,7 @@ func Makemigrations() {
 	err := global.DB.Set("gorm:table_options", "ENGINE=InnoDB").AutoMigrate(
 		&models.User{},
 		&models.Video{},
+		&models.UserFavoriteVideo{},
 		&models.Message{},
 		&models.Comment{},
 		&models.MessagePushEvent{},

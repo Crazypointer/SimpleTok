@@ -5,25 +5,23 @@ type Response struct {
 	StatusMsg  string `json:"status_msg,omitempty"`
 }
 
-type Video struct {
-	Id            int64  `json:"id,omitempty" gorm:"primary_key, AUTO_INCREMENT"`        // 视频唯一标识
-	Title         string `json:"title"`                                                  // 视频标题
-	HashTag       string `json:"hash_tag,omitempty"`                                     // 视频hash tag 避免重复上传
-	AuthorID      int64  `json:"author_id,omitempty"`                                    // 视频作者id
-	Author        *User  `json:"author" gorm:"foreignkey:AuthorID"`                      // 视频作者信息
-	PlayUrl       string `json:"play_url,omitempty"`                                     // 视频播放地址
-	CoverUrl      string `json:"cover_url,omitempty"`                                    // 视频封面地址
-	FavoriteCount int64  `json:"favorite_count,omitempty"`                               // 视频的点赞总数
-	CommentCount  int64  `json:"comment_count,omitempty"`                                // 视频的评论总数
-	IsFavorite    bool   `json:"is_favorite,omitempty" gorm:"type:tinyint(1);default:0"` // true-已点赞，false-未点赞
-}
-
 type Comment struct {
 	Id         int64  `json:"id,omitempty" gorm:"primary_key"`
 	UserID     int64  `json:"user_id,omitempty"`
 	User       User   `json:"user" gorm:"foreignkey:UserID"`
 	Content    string `json:"content,omitempty"`
 	CreateDate string `json:"create_date,omitempty"`
+}
+type Video struct {
+	Id            int64  `json:"id,omitempty" gorm:"primary_key, AUTO_INCREMENT"` // 视频唯一标识
+	Title         string `json:"title"`                                           // 视频标题
+	HashTag       string `json:"hash_tag,omitempty"`                              // 视频hash tag 避免重复上传
+	AuthorID      int64  `json:"author_id,omitempty"`                             // 视频作者id
+	Author        User   `json:"author" gorm:"foreignkey:AuthorID"`               // 视频作者信息
+	PlayUrl       string `json:"play_url,omitempty"`                              // 视频播放地址
+	CoverUrl      string `json:"cover_url,omitempty"`                             // 视频封面地址
+	FavoriteCount int64  `json:"favorite_count,omitempty"`                        // 视频的点赞总数
+	CommentCount  int64  `json:"comment_count,omitempty"`                         // 视频的评论总数
 }
 
 type User struct {
@@ -38,7 +36,14 @@ type User struct {
 	FollowerCount   int64  `json:"follower_count" gorm:"default:0"`                      // 粉丝总数
 	Signature       string `json:"signature"`                                            // 个人简介
 	TotalFavorited  int    `json:"total_favorited" gorm:"default:0"`                     // 总获赞数量
-	WorkCount       int64  `json:"work_count" gorm:"default:0"`                          // 作品数
+	WorkCount       int64  `json:"work_count" gorm:"default:0"`
+	// FavoriteVideos  []*Video `json:"omitempty" gorm:"many2many:user_favorite_videos;"` // 喜爱的视频
+}
+
+// UserFavoriteVideo  记录用户id与视频id的对应关系 用来判断是否点赞
+type UserFavoriteVideo struct {
+	UserID  int64
+	VideoID int64
 }
 
 type Message struct {

@@ -121,7 +121,8 @@ func PublishList(c *gin.Context) {
 		var user models.User
 		global.DB.Where("id = ?", video.AuthorID).First(&user)
 		fmt.Println(user)
-		videoList[i].Author = &user
+		videoList[i].Author = user
+		fmt.Println(videoList[i])
 	}
 	c.JSON(http.StatusOK, VideoListResponse{
 		Response: Response{
