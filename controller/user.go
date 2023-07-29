@@ -17,13 +17,8 @@ var usersLoginInfo = map[string]models.User{}
 
 type UserLoginResponse struct {
 	Response
-	UserId int64  `json:"user_id,omitempty"`
+	UserID int64  `json:"user_id,omitempty"`
 	Token  string `json:"token"`
-}
-
-type UserResponse struct {
-	Response
-	User models.User `json:"user"`
 }
 
 func Register(c *gin.Context) {
@@ -58,7 +53,7 @@ func Register(c *gin.Context) {
 		global.DB.Create(&newUser)
 		c.JSON(http.StatusOK, UserLoginResponse{
 			Response: Response{StatusCode: 0},
-			UserId:   newUser.ID,
+			UserID:   newUser.ID,
 			Token:    username + password,
 		})
 		// 将用户信息存入内存 其实需要存入redis
@@ -80,7 +75,7 @@ func Login(c *gin.Context) {
 		usersLoginInfo[token] = user
 		c.JSON(http.StatusOK, UserLoginResponse{
 			Response: Response{StatusCode: 0},
-			UserId:   user.ID,
+			UserID:   user.ID,
 			Token:    token,
 		})
 	} else if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -96,14 +91,38 @@ func Login(c *gin.Context) {
 
 func UserInfo(c *gin.Context) {
 	token := c.Query("token")
-	if user, exist := usersLoginInfo[token]; exist {
-		c.JSON(http.StatusOK, UserResponse{
-			Response: Response{StatusCode: 0},
-			User:     user,
-		})
-	} else {
-		c.JSON(http.StatusOK, UserResponse{
-			Response: Response{StatusCode: 1, StatusMsg: "User doesn't exist"},
-		})
+	userID := c.Query("user_id")
+	_, exist := usersLoginInfo[token]
+	if !exist {
+		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: "请先登录"})
+		return
 	}
+	var user models.User
+
+	if err := global.DB.Where("id = ?", userID).First(&user).Error; err != nil {
+		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: err.Error()})
+		return
+	}
+	// 判断是否关注
+	var follow models.UserFollowRelation
+	var isFollow bool
+	if err := global.DB.Where("user_id = ? AND follow_user_id = ?", usersLoginInfo[token].ID, userID).First(&follow).Error; err == nil {
+		isFollow = true
+	} else {
+		isFollow = false
+	}
+	userRes := User{
+		ID:              user.ID,
+		Name:            user.Name,
+		Avatar:          user.Avatar,
+		BackgroundImage: user.BackgroundImage,
+		FavoriteCount:   user.FavoriteCount,
+		FollowCount:     user.FollowCount,
+		FollowerCount:   user.FollowerCount,
+		Signature:       user.Signature,
+		TotalFavorited:  user.TotalFavorited,
+		WorkCount:       user.WorkCount,
+		IsFollow:        isFollow,
+	}
+	c.JSON(http.StatusOK, UserResponse{Response: Response{StatusCode: 0}, User: userRes})
 }

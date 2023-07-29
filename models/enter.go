@@ -1,10 +1,5 @@
 package models
 
-type Response struct {
-	StatusCode int32  `json:"status_code"`
-	StatusMsg  string `json:"status_msg,omitempty"`
-}
-
 type Comment struct {
 	ID         int64  `json:"id,omitempty" gorm:"primary_key"`
 	UserID     int64  `json:"user_id,omitempty"`
@@ -27,24 +22,34 @@ type Video struct {
 }
 
 type User struct {
-	ID              int64  `json:"id,omitempty" gorm:"primary_key"`                      //用户id
-	Name            string `json:"name,omitempty" gorm:"unique_index"`                   // 用户名 唯一
-	Password        string `json:"-" gorm:"not null"`                                    // 密码
-	IsFollow        bool   `json:"is_follow,omitempty" gorm:"type:tinyint(1);default:0"` //true-已关注，false-未关注
-	Avatar          string `json:"avatar"`                                               // 用户头像
-	BackgroundImage string `json:"background_image"`                                     // 用户个人页顶部大图
-	FavoriteCount   int64  `json:"favorite_count" gorm:"default:0"`                      // 喜欢作品数
-	FollowCount     int64  `json:"follow_count" gorm:"default:0"`                        // 关注总数
-	FollowerCount   int64  `json:"follower_count" gorm:"default:0"`                      // 粉丝总数
-	Signature       string `json:"signature"`                                            // 个人简介
-	TotalFavorited  int    `json:"total_favorited" gorm:"default:0"`                     // 总获赞数量
+	ID              int64  `json:"id,omitempty" gorm:"primary_key"`    //用户id
+	Name            string `json:"name,omitempty" gorm:"unique_index"` // 用户名 唯一
+	Password        string `json:"-" gorm:"not null"`                  // 密码
+	Avatar          string `json:"avatar"`                             // 用户头像
+	BackgroundImage string `json:"background_image"`                   // 用户个人页顶部大图
+	FavoriteCount   int64  `json:"favorite_count" gorm:"default:0"`    // 喜欢作品数
+	FollowCount     int64  `json:"follow_count" gorm:"default:0"`      // 关注总数
+	FollowerCount   int64  `json:"follower_count" gorm:"default:0"`    // 粉丝总数
+	Signature       string `json:"signature"`                          // 个人简介
+	TotalFavorited  int    `json:"total_favorited" gorm:"default:0"`   // 总获赞数量
 	WorkCount       int64  `json:"work_count" gorm:"default:0"`
-	// FavoriteVideos  []*Video `json:"omitempty" gorm:"many2many:user_favorite_videos;"` // 喜爱的视频
+}
+
+// UserFollowRelation 记录用户与用户的对应关系 正向关注 反向粉丝
+type UserFollowRelation struct {
+	UserID       int64 `gorm:"primary_key"` // 用户id
+	FollowUserID int64 // 关注的用户id
+}
+
+// UserFirend  用户好友表
+type UserFirend struct {
+	UserID   int64 `gorm:"primary_key"` // 用户id
+	FirendID int64 // 好友id
 }
 
 // UserFavoriteVideo  记录用户id与视频id的对应关系 用来判断是否点赞
 type UserFavoriteVideo struct {
-	UserID  int64
+	UserID  int64 `gorm:"primary_key"`
 	VideoID int64
 }
 
@@ -56,14 +61,14 @@ type Message struct {
 	ToUserID   int64  `json:"to_user_id"`                                     // 消息接收者id
 }
 
-// 消息发送事件
+// 消息发送事件表
 type MessageSendEvent struct {
 	UserID     int64  `json:"user_id,omitempty" gorm:"primary_key"`
 	ToUserID   int64  `json:"to_user_id,omitempty"`
 	MsgContent string `json:"msg_content,omitempty"`
 }
 
-// 消息推送事件
+// 消息推送事件表
 type MessagePushEvent struct {
 	FromUserID int64  `json:"user_id,omitempty"`
 	MsgContent string `json:"msg_content,omitempty"`
