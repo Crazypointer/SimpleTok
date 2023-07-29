@@ -10,9 +10,10 @@ import (
 )
 
 type FeedResponse struct {
-	Response  models.Response `json:"response"`
-	VideoList []models.Video  `json:"video_list,omitempty"`
-	NextTime  int64           `json:"next_time,omitempty"`
+	StatusCode int32          `json:"status_code"`
+	StatusMsg  string         `json:"status_msg,omitempty"`
+	NextTime   int64          `json:"next_time,omitempty"`
+	VideoList  []models.Video `json:"video_list,omitempty"`
 }
 
 // Feed same demo video list for every request
@@ -21,8 +22,8 @@ func Feed(c *gin.Context) {
 	videoList := service.GetFeedList()
 
 	c.JSON(http.StatusOK, FeedResponse{
-		Response:  models.Response{StatusCode: 0},
-		VideoList: videoList,
-		NextTime:  time.Now().Unix(),
+		StatusCode: 0,
+		VideoList:  videoList,
+		NextTime:   time.Now().Unix(),
 	})
 }
