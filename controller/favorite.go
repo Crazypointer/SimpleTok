@@ -10,9 +10,8 @@ import (
 )
 
 type FavoriteListResponse struct {
-	StatusCode int32          `json:"status_code"`
-	StatusMsg  string         `json:"status_msg,omitempty"`
-	VideoList  []models.Video `json:"video_list,omitempty"`
+	Response
+	VideoList []models.Video `json:"video_list,omitempty"`
 }
 
 // FavoriteAction 为视频点赞
@@ -31,7 +30,7 @@ func FavoriteAction(c *gin.Context) {
 	}
 	actionType := c.Query("action_type")
 
-	userID := usersLoginInfo[token].Id
+	userID := usersLoginInfo[token].ID
 	//2. 获取数据
 	var video models.Video
 	global.DB.Where("id = ?", videoID).First(&video)
@@ -145,5 +144,5 @@ func FavoriteList(c *gin.Context) {
 		video.Author = author
 		videos = append(videos, video)
 	}
-	c.JSON(http.StatusOK, FavoriteListResponse{StatusCode: 0, VideoList: videos})
+	c.JSON(http.StatusOK, FavoriteListResponse{Response: Response{StatusCode: 0}, VideoList: videos})
 }

@@ -28,11 +28,11 @@ func MessageAction(c *gin.Context) {
 
 	if user, exist := usersLoginInfo[token]; exist {
 		userIdB, _ := strconv.Atoi(toUserId)
-		chatKey := genChatKey(user.Id, int64(userIdB))
+		chatKey := genChatKey(user.ID, int64(userIdB))
 
 		atomic.AddInt64(&messageIdSequence, 1)
 		curMessage := models.Message{
-			Id:         messageIdSequence,
+			ID:         messageIdSequence,
 			Content:    content,
 			CreateTime: time.Now().Format(time.Kitchen),
 		}
@@ -55,7 +55,7 @@ func MessageChat(c *gin.Context) {
 
 	if user, exist := usersLoginInfo[token]; exist {
 		userIdB, _ := strconv.Atoi(toUserId)
-		chatKey := genChatKey(user.Id, int64(userIdB))
+		chatKey := genChatKey(user.ID, int64(userIdB))
 
 		c.JSON(http.StatusOK, ChatResponse{Response: Response{StatusCode: 0}, MessageList: tempChat[chatKey]})
 	} else {

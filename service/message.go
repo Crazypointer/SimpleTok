@@ -48,21 +48,21 @@ func process(conn net.Conn) {
 		_ = json.Unmarshal(buf[:n], &event)
 		fmt.Printf("Receive Message：%+v\n", event)
 
-		fromChatKey := fmt.Sprintf("%d_%d", event.UserId, event.ToUserId)
+		fromChatKey := fmt.Sprintf("%d_%d", event.UserID, event.ToUserID)
 		if len(event.MsgContent) == 0 {
 			chatConnMap.Store(fromChatKey, conn)
 			continue
 		}
 
-		toChatKey := fmt.Sprintf("%d_%d", event.ToUserId, event.UserId)
+		toChatKey := fmt.Sprintf("%d_%d", event.ToUserID, event.UserID)
 		writeConn, exist := chatConnMap.Load(toChatKey)
 		if !exist {
-			fmt.Printf("User %d offline\n", event.ToUserId)
+			fmt.Printf("User %d offline\n", event.ToUserID)
 			continue
 		}
 
 		pushEvent := models.MessagePushEvent{
-			FromUserId: event.UserId,
+			FromUserID: event.UserID,
 			MsgContent: event.MsgContent,
 		}
 		pushData, _ := json.Marshal(pushEvent)

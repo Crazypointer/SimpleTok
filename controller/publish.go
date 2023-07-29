@@ -41,7 +41,7 @@ func Publish(c *gin.Context) {
 	//获取当前时间
 	now := time.Duration(time.Now().UnixNano())
 	// 生成文件名
-	finalName := fmt.Sprintf("%d_%d_%s", user.Id, now, filename)
+	finalName := fmt.Sprintf("%d_%d_%s", user.ID, now, filename)
 	fmt.Println("finalName:", finalName)
 
 	playUrl := ""
@@ -97,7 +97,7 @@ func Publish(c *gin.Context) {
 	}
 	// 将视频信息存入数据库
 	newVideo := models.Video{
-		AuthorID: user.Id,
+		AuthorID: user.ID,
 		PlayUrl:  playUrl,
 		HashTag:  videoHash,
 	}

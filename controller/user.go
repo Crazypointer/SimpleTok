@@ -58,7 +58,7 @@ func Register(c *gin.Context) {
 		global.DB.Create(&newUser)
 		c.JSON(http.StatusOK, UserLoginResponse{
 			Response: Response{StatusCode: 0},
-			UserId:   newUser.Id,
+			UserId:   newUser.ID,
 			Token:    username + password,
 		})
 		// 将用户信息存入内存 其实需要存入redis
@@ -80,7 +80,7 @@ func Login(c *gin.Context) {
 		usersLoginInfo[token] = user
 		c.JSON(http.StatusOK, UserLoginResponse{
 			Response: Response{StatusCode: 0},
-			UserId:   user.Id,
+			UserId:   user.ID,
 			Token:    token,
 		})
 	} else if errors.Is(err, gorm.ErrRecordNotFound) {
