@@ -17,7 +17,7 @@ func main() {
 	global.DB = core.InitGorm()
 
 	// 生成数据库表结构 第一次运行项目 或 修改表结构 时解开注释
-	//Makemigrations()
+	// Makemigrations()
 
 	go service.RunMessageServer()
 	r := gin.Default()
@@ -31,7 +31,6 @@ func Makemigrations() {
 		&models.User{},               // 用户表
 		&models.Video{},              // 视频表
 		&models.UserFavoriteVideo{},  // 用户点赞视频表
-		&models.UserFirend{},         // 用户好友表
 		&models.Message{},            // 消息表
 		&models.Comment{},            // 评论表
 		&models.UserFollowRelation{}, // 用户关注关系表

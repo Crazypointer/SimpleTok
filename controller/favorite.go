@@ -21,46 +21,51 @@ func FavoriteAction(c *gin.Context) {
 		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: "用户未登录，请先登录系统!"})
 		return
 	}
-	//1. 获取视频id 和 点赞类型
+	//1. 获取视频id 和 点赞类型: 1 点赞 2 取消点赞
 	vid := c.Query("video_id")
-	videoID, err := strconv.ParseInt(vid, 10, 64)
-	if err != nil {
-		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: err.Error()})
-		return
-	}
+	videoID, _ := strconv.ParseInt(vid, 10, 64)
 	actionType := c.Query("action_type")
 
 	userID := usersLoginInfo[token].ID
 	//2. 获取数据
+
+	tx := global.DB.Begin()
+
 	var video models.Video
-	global.DB.Where("id = ?", videoID).First(&video)
+	if err := tx.Where("id = ?", videoID).First(&video).Error; err != nil {
+		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: err.Error()})
+		return
+	}
 
 	var author models.User //视频作者
-	err = global.DB.Where("id = ?", video.AuthorID).First(&author).Error
-	if err != nil {
+	if err := tx.Where("id = ?", video.AuthorID).First(&author).Error; err != nil {
 		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: err.Error()})
 		return
 	}
 
 	var user models.User //当前登录用户
-	err = global.DB.Where("id = ?", userID).First(&user).Error
-	if err != nil {
+	if err := tx.Where("id = ?", userID).First(&user).Error; err != nil {
 		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: err.Error()})
 		return
 	}
 
 	// 判断用户是否已经点赞 默认没有点赞
 	isFavorite := false
-	//查询关联表
+	//查询视频点赞表
 	var favorite models.UserFavoriteVideo
-	err = global.DB.Where("user_id = ? AND video_id = ?", userID, videoID).First(&favorite).Error
+	err := tx.Where("user_id = ? AND video_id = ?", userID, videoID).First(&favorite).Error
 	if err == nil {
 		//如果有查询到记录，说明用户点赞过
 		isFavorite = true
 	}
 
 	//根据点赞类型，进行不同的操作
-	if actionType == "1" && !isFavorite {
+	if actionType == "1" {
+		if isFavorite {
+			tx.Commit()
+			c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: "已经点赞过了"})
+			return
+		}
 		video.FavoriteCount++
 		//视频作者的总获赞数+1
 		author.TotalFavorited++
@@ -69,22 +74,25 @@ func FavoriteAction(c *gin.Context) {
 		//创建关联表
 		favorite.UserID = userID
 		favorite.VideoID = videoID
-		global.DB.Create(&favorite)
-	} else if actionType == "2" && isFavorite {
+		tx.Create(&favorite)
+	} else if actionType == "2" {
+		if !isFavorite {
+			tx.Commit()
+			c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: "还没有点赞过"})
+			return
+		}
 		video.FavoriteCount--
 		author.TotalFavorited--
 		user.FavoriteCount--
 		//删除关联表
-		global.DB.Delete(&favorite, "user_id = ? AND video_id = ?", userID, videoID)
+		tx.Delete(&favorite, "user_id = ? AND video_id = ?", userID, videoID)
 	} else {
-		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: "操作失败"})
+		tx.Commit()
+		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: "参数错误"})
 		return
 	}
-	//3. 更新信息
-	//开启事务
-	tx := global.DB.Begin()
 
-	// 在事务中执行操作
+	//3. 更新信息
 	if err := tx.Save(&video).Error; err != nil {
 		// 发生错误时回滚事务
 		tx.Rollback()

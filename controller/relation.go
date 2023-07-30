@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -26,20 +27,44 @@ func RelationAction(c *gin.Context) {
 		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: "请先登录"})
 		return
 	}
+	if user.ID == toUserID {
+		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: "不能关注或取关自己"})
+		return
+	}
 
 	if actionType == "1" {
-		// follow
+		// 开启事务
+		tx := global.DB.Begin()
+		// 是否已经关注
 		var userFollowRelation models.UserFollowRelation
 		err := global.DB.Where("user_id = ? AND follow_user_id = ?", user.ID, toUserID).First(&userFollowRelation).Error
 		if err == nil {
 			c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: "已关注"})
 			return
 		}
-		tx := global.DB.Begin()
-		// 关注关系表更新
+
+		// 判断用户是不是互关
+		isFollowEachOther := false
+		err = global.DB.Where("user_id = ? AND follow_user_id = ?", toUserID, user.ID).First(&userFollowRelation).Error
+		if err == nil {
+			isFollowEachOther = true // 互关则为好友
+			err := tx.Save(&models.UserFollowRelation{
+				UserID:       toUserID,
+				FollowUserID: user.ID,
+				IsFriend:     true,
+			}).Error
+			if err != nil {
+				tx.Rollback()
+				c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: err.Error()})
+				return
+			}
+		}
+
+		// 关注关系表添加
 		if err := tx.Create(&models.UserFollowRelation{
 			UserID:       user.ID,
 			FollowUserID: toUserID,
+			IsFriend:     isFollowEachOther,
 		}).Error; err != nil {
 			tx.Rollback()
 			c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: err.Error()})
@@ -71,9 +96,23 @@ func RelationAction(c *gin.Context) {
 		c.JSON(http.StatusOK, Response{StatusCode: 0})
 		return
 	}
+	// 取关
 	if actionType == "2" {
-		// unfollow
+		// 开启事务
 		tx := global.DB.Begin()
+
+		//判断两者是不是好友
+		var IsFriend models.UserFollowRelation
+		if err := tx.Where("user_id = ? AND follow_user_id = ? AND is_friend = true", toUserID, user.ID).First(&IsFriend).Error; err == nil {
+			// 互关则为好友
+			err := tx.Model(&IsFriend).Update("is_friend", false).Error
+			if err != nil {
+				tx.Rollback()
+				c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: err.Error()})
+				return
+			}
+		}
+
 		// 删除关注关系表
 		var userFollowRelation models.UserFollowRelation
 		err := tx.Where("user_id = ? AND follow_user_id = ?", user.ID, toUserID).Delete(&userFollowRelation).Error
@@ -171,6 +210,7 @@ func FollowerList(c *gin.Context) {
 		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: err.Error()})
 		return
 	}
+	fmt.Println(userFollowers)
 	var userList []User
 	for _, v := range userFollowers {
 		var follower models.User
@@ -203,5 +243,43 @@ func FollowerList(c *gin.Context) {
 
 // FriendList all users have same friend list
 func FriendList(c *gin.Context) {
-
+	tk := c.Query("token")
+	_, exist := usersLoginInfo[tk]
+	if !exist {
+		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: "请先登录"})
+		return
+	}
+	userID := c.Query("user_id")
+	var friends []models.UserFollowRelation
+	if err := global.DB.Where("user_id = ? AND is_friend = true", userID).Find(&friends).Error; err != nil {
+		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: err.Error()})
+		return
+	}
+	var userList []User
+	for _, v := range friends {
+		u := models.User{}
+		if err := global.DB.Where("id = ?", v.FollowUserID).First(&u).Error; err != nil {
+			c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: err.Error()})
+			return
+		}
+		userRes := User{
+			ID:              u.ID,
+			Name:            u.Name,
+			Avatar:          u.Avatar,
+			BackgroundImage: u.BackgroundImage,
+			FavoriteCount:   u.FavoriteCount,
+			FollowCount:     u.FollowCount,
+			FollowerCount:   u.FollowerCount,
+			Signature:       u.Signature,
+			TotalFavorited:  u.TotalFavorited,
+			WorkCount:       u.WorkCount,
+		}
+		userList = append(userList, userRes)
+	}
+	c.JSON(http.StatusOK, UserListResponse{
+		Response: Response{
+			StatusCode: 0,
+		},
+		UserList: userList,
+	})
 }

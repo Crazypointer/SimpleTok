@@ -21,6 +21,17 @@ type User struct {
 	IsFollow        bool   `json:"is_follow"` //true-已关注，false-未关注 在返回用户列表时使用，通过查询UserFollowRelation表来赋值返回
 }
 
+type Video struct {
+	ID            int64  `json:"id"`             // 视频唯一标识
+	Title         string `json:"title"`          // 视频标题
+	Author        User   `json:"author"`         // 视频作者信息
+	CommentCount  int64  `json:"comment_count"`  // 视频的评论总数
+	FavoriteCount int64  `json:"favorite_count"` // 视频的点赞总数
+	IsFavorite    bool   `json:"is_favorite"`    // true-已点赞，false-未点赞
+	CoverUrl      string `json:"cover_url"`      // 视频封面地址
+	PlayUrl       string `json:"play_url"`       // 视频播放地址
+}
+
 // UserResponse 封装请求用户信息的响应
 type UserResponse struct {
 	Response

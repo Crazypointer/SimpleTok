@@ -56,7 +56,7 @@ func Register(c *gin.Context) {
 			UserID:   newUser.ID,
 			Token:    username + password,
 		})
-		// 将用户信息存入内存 其实需要存入redis
+		// TODO: 将用户信息存入内存 其实需要存入redis
 		usersLoginInfo[token] = newUser
 	}
 }

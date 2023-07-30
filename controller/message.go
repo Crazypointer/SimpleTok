@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// 临时聊天记录 未来可以存储到redis中
 var tempChat = map[string][]models.Message{}
 
 var messageIdSequence = int64(1)
@@ -20,7 +21,7 @@ type ChatResponse struct {
 	MessageList []models.Message `json:"message_list"`
 }
 
-// MessageAction no practical effect, just check if token is valid
+// MessageAction 聊天记录
 func MessageAction(c *gin.Context) {
 	token := c.Query("token")
 	toUserId := c.Query("to_user_id")
@@ -48,7 +49,8 @@ func MessageAction(c *gin.Context) {
 	}
 }
 
-// MessageChat all users have same follow list
+// MessageChat all 发送消息
+// TODO: 业务逻辑没理清 待完善
 func MessageChat(c *gin.Context) {
 	token := c.Query("token")
 	toUserId := c.Query("to_user_id")
@@ -57,12 +59,20 @@ func MessageChat(c *gin.Context) {
 		userIdB, _ := strconv.Atoi(toUserId)
 		chatKey := genChatKey(user.ID, int64(userIdB))
 
+		var msg models.Message
+		text := c.Query("content")
+		msg.Content = text
+		msg.CreateTime = time.Now().Format("2006-01-02 15:04:05")
+		msg.FromUserID = user.ID
+		msg.ToUserID = int64(userIdB)
+
 		c.JSON(http.StatusOK, ChatResponse{Response: Response{StatusCode: 0}, MessageList: tempChat[chatKey]})
 	} else {
 		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: "User doesn't exist"})
 	}
 }
 
+// genChatKey 生成聊天的key
 func genChatKey(userIdA int64, userIdB int64) string {
 	if userIdA > userIdB {
 		return fmt.Sprintf("%d_%d", userIdB, userIdA)

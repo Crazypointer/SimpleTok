@@ -39,12 +39,7 @@ type User struct {
 type UserFollowRelation struct {
 	UserID       int64 `gorm:"primary_key"` // 用户id
 	FollowUserID int64 // 关注的用户id
-}
-
-// UserFirend  用户好友表
-type UserFirend struct {
-	UserID   int64 `gorm:"primary_key"` // 用户id
-	FirendID int64 // 好友id
+	IsFriend     bool  // 是否是好友  互相关注的人互相是好友
 }
 
 // UserFavoriteVideo  记录用户id与视频id的对应关系 用来判断是否点赞
@@ -54,11 +49,11 @@ type UserFavoriteVideo struct {
 }
 
 type Message struct {
-	ID         int64  `json:"id,omitempty" gorm:"primary_key,AUTO_INCREMENT"` // 消息id
-	Content    string `json:"content,omitempty"`                              // 消息内容
-	CreateTime string `json:"create_time,omitempty"`                          // 消息发送时间 yyyy-MM-dd HH:MM:ss
-	FromUserID int64  `json:"from_user_id"`                                   // 消息发送者id
-	ToUserID   int64  `json:"to_user_id"`                                     // 消息接收者id
+	ID         int64  `json:"id" gorm:"primary_key,AUTO_INCREMENT"` // 消息id
+	CreateTime string `json:"create_time"`                          // 消息发送时间 yyyy-MM-dd HH:MM:ss
+	ToUserID   int64  `json:"to_user_id"`                           // 消息接收者id
+	FromUserID int64  `json:"from_user_id"`                         // 消息发送者id
+	Content    string `json:"content,omitempty"`                    // 消息内容
 }
 
 // 消息发送事件表

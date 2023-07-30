@@ -16,7 +16,7 @@ import (
 
 type VideoListResponse struct {
 	Response
-	VideoList []models.Video `json:"video_list"`
+	VideoList []Video `json:"video_list"`
 }
 
 // Publish check token then save upload file to public directory
@@ -66,7 +66,6 @@ func Publish(c *gin.Context) {
 	}
 
 	videoHash := utils.Md5(byteData)
-	fmt.Println("videoHash:", videoHash)
 	//TODO: 校验Hash值，数据库中存储Hash值，防止重复上传
 	// 查询数据库中是否存在该Hash值
 	var video models.Video
@@ -110,19 +109,47 @@ func Publish(c *gin.Context) {
 
 // PublishList all users have same publish video list
 func PublishList(c *gin.Context) {
-	var videoList []models.Video
+
 	token := c.Query("token") // 用于鉴权
-	fmt.Println(token)        // 此处还缺对用户进行鉴权操作
+	// 鉴权
+	_, exist := usersLoginInfo[token]
+	if !exist {
+		c.JSON(http.StatusOK, Response{
+			StatusCode: 1,
+			StatusMsg:  "User doesn't exist",
+		})
+		return
+	}
 
 	userID := c.Query("user_id")
-	global.DB.Where("author_id", userID).Find(&videoList)
-	for i, video := range videoList {
-		// 根据视频ID获取视频作者
-		var user models.User
-		global.DB.Where("id = ?", video.AuthorID).First(&user)
-		fmt.Println(user)
-		videoList[i].Author = user
-		fmt.Println(videoList[i])
+	var videos []models.Video
+	global.DB.Where("author_id", userID).Find(&videos)
+	var user models.User
+	global.DB.Where("id = ?", userID).First(&user)
+	var videoList []Video
+	for _, video := range videos {
+		videoList = append(videoList, Video{
+			Author: User{
+				ID:              user.ID,
+				Name:            user.Name,
+				Avatar:          user.Avatar,
+				BackgroundImage: user.BackgroundImage,
+				FavoriteCount:   user.FavoriteCount,
+				FollowCount:     user.FollowCount,
+				FollowerCount:   user.FollowerCount,
+				Signature:       user.Signature,
+				TotalFavorited:  user.TotalFavorited,
+				WorkCount:       user.WorkCount,
+				IsFollow:        false,
+			},
+			CommentCount:  video.CommentCount,
+			CoverUrl:      video.CoverUrl,
+			FavoriteCount: video.FavoriteCount,
+			ID:            video.ID,
+			PlayUrl:       video.PlayUrl,
+			Title:         video.Title,
+			IsFavorite:    false,
+		})
 	}
 	c.JSON(http.StatusOK, VideoListResponse{
 		Response: Response{

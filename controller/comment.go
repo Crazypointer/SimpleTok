@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -32,6 +31,9 @@ func CommentAction(c *gin.Context) {
 	actionType := c.Query("action_type")
 	vid := c.Query("video_id")
 	videoID, _ := strconv.ParseInt(vid, 10, 64)
+	tx := global.DB.Begin()
+	var video models.Video
+	tx.Where("id = ?", videoID).First(&video)
 	if actionType == "1" {
 		text := c.Query("comment_text")
 		var comment models.Comment
@@ -39,17 +41,23 @@ func CommentAction(c *gin.Context) {
 		comment.Content = text
 		comment.CreateDate = time.Now().Local().Format("2006-01-02 15:04")
 		comment.VideoID = videoID
-		fmt.Println(comment)
 		// 将评论信息写入数据库
-		global.DB.Create(&comment)
-
+		tx.Create(&comment)
+		//视频评论数+1
+		video.CommentCount++
+		tx.Save(&video)
+		tx.Commit()
 		c.JSON(http.StatusOK, CommentActionResponse{Response: Response{StatusCode: 0}, Comment: comment})
 		return
 	}
 	if actionType == "2" {
 		commentID := c.Query("comment_id")
-		var comment models.Comment
-		global.DB.Where("id = ?", commentID).First(&comment)
+		// 删除评论
+		tx.Where("id = ?", commentID).Delete(&models.Comment{})
+		// 视频评论数-1
+		video.CommentCount--
+		tx.Save(&video)
+		tx.Commit()
 		c.JSON(http.StatusOK, Response{StatusCode: 0})
 		return
 	}
