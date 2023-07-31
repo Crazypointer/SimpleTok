@@ -17,3 +17,10 @@ cos:
 
 local:
   enable: false # 是否启用本地存储
+
+redis:
+  host: localhost
+  port: 6379
+  password: ""
+  db: 0
+  pool_size: 100

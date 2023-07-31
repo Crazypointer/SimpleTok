@@ -25,7 +25,7 @@ func Feed(c *gin.Context) {
 	for _, video := range videos {
 		// 根据视频ID获取视频作者
 		var user models.User
-		global.DB.Where("id = ?", video.AuthorID).First(&user)
+		global.DB.Where("id = ?", video.AuthorID).Find(&user)
 		videoList = append(videoList, Video{
 			Author: User{
 				ID:              user.ID,

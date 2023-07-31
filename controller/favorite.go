@@ -144,7 +144,7 @@ func FavoriteList(c *gin.Context) {
 		}
 		//查询视频作者信息
 		var author models.User
-		err = global.DB.Where("id = ?", video.AuthorID).First(&author).Error
+		err = global.DB.Where("id = ?", video.AuthorID).Find(&author).Error
 		if err != nil {
 			c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: err.Error()})
 			return

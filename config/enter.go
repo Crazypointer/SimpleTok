@@ -22,12 +22,20 @@ type Cos struct {
 type Local struct {
 	Enable bool `yaml:"enable"`
 }
+type Redis struct {
+	IP       string `yaml:"ip"`
+	Port     int    `yaml:"port"`
+	Password string `yaml:"password"`
+	DB       int    `yaml:"db"`
+	PoolSize int    `yaml:"pool-size"`
+}
 
 type Config struct {
 	Mysql  Mysql  `yaml:"mysql"`
 	Server Server `yaml:"server"`
 	Cos    Cos    `yaml:"cos"`
 	Local  Local  `yaml:"local"`
+	Redis  Redis  `yaml:"redis"`
 }
 
 func (m Mysql) Dsn() string {
