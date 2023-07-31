@@ -3,20 +3,32 @@ package core
 import (
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/Crazypointer/simple-tok/global"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 func InitGorm() *gorm.DB {
+	// 创建一个标准日志器
+	newLogger := logger.New(
+		log.New(os.Stdout, "\r\n", log.LstdFlags), // io writer
+		logger.Config{
+			SlowThreshold: time.Second, // 慢 SQL 阈值
+			LogLevel:      logger.Info, // 日志级别
+			Colorful:      true,        // 是否启用彩色日志
+		},
+	)
+
 	if global.Config.Mysql.Host == "" {
 		log.Println("未配grom，取消mysql链接！")
 		return nil
 	}
 	dsn := global.Config.Mysql.Dsn()
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{Logger: newLogger})
 	if err != nil {
 		log.Fatalf(fmt.Sprintf("[%s] mysql链接失败！", dsn))
 	}

@@ -23,11 +23,16 @@ type Local struct {
 	Enable bool `yaml:"enable"`
 }
 type Redis struct {
-	IP       string `yaml:"ip"`
+	Host     string `yaml:"host"`
 	Port     int    `yaml:"port"`
 	Password string `yaml:"password"`
 	DB       int    `yaml:"db"`
 	PoolSize int    `yaml:"pool-size"`
+}
+type Jwt struct {
+	Secret string `yaml:"secret"`
+	Expire int    `yaml:"expire"`
+	Issuer string `yaml:"issuer"`
 }
 
 type Config struct {
@@ -36,6 +41,7 @@ type Config struct {
 	Cos    Cos    `yaml:"cos"`
 	Local  Local  `yaml:"local"`
 	Redis  Redis  `yaml:"redis"`
+	Jwt    Jwt    `yaml:"jwt"`
 }
 
 func (m Mysql) Dsn() string {

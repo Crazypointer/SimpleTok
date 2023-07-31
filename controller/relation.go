@@ -7,6 +7,7 @@ import (
 
 	"github.com/Crazypointer/simple-tok/global"
 	"github.com/Crazypointer/simple-tok/models"
+	"github.com/Crazypointer/simple-tok/utils"
 	"github.com/gin-gonic/gin"
 )
 
@@ -17,40 +18,39 @@ type UserListResponse struct {
 
 // RelationAction 关注/取消关注
 func RelationAction(c *gin.Context) {
-	token := c.Query("token")
+	_claims, _ := c.Get("claims")
+	claims := _claims.(*utils.CustomClaims)
+	userID := claims.UserID
+
 	toUser := c.Query("to_user_id")
 	toUserID, _ := strconv.ParseInt(toUser, 10, 64)
 	actionType := c.Query("action_type")
-	// 鉴权
-	user, exist := usersLoginInfo[token]
-	if !exist {
-		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: "请先登录"})
-		return
-	}
-	if user.ID == toUserID {
+
+	if userID == toUserID {
 		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: "不能关注或取关自己"})
 		return
 	}
+	var user models.User
+	global.DB.Where("id = ?", userID).First(&user)
 
 	if actionType == "1" {
 		// 开启事务
 		tx := global.DB.Begin()
 		// 是否已经关注
 		var userFollowRelation models.UserFollowRelation
-		err := global.DB.Where("user_id = ? AND follow_user_id = ?", user.ID, toUserID).First(&userFollowRelation).Error
-		if err == nil {
-			c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: "已关注"})
+
+		if count := global.DB.Where("user_id = ? AND follow_user_id = ?", userID, toUserID).First(&userFollowRelation).RowsAffected; count != 0 {
+			c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: "您已关注，无法重复关注"})
 			return
 		}
 
 		// 判断用户是不是互关
 		isFollowEachOther := false
-		err = global.DB.Where("user_id = ? AND follow_user_id = ?", toUserID, user.ID).First(&userFollowRelation).Error
-		if err == nil {
+		if count := global.DB.Where("user_id = ? AND follow_user_id = ?", toUserID, userID).First(&userFollowRelation).RowsAffected; count != 0 {
 			isFollowEachOther = true // 互关则为好友
 			err := tx.Save(&models.UserFollowRelation{
 				UserID:       toUserID,
-				FollowUserID: user.ID,
+				FollowUserID: userID,
 				IsFriend:     true,
 			}).Error
 			if err != nil {
@@ -62,7 +62,7 @@ func RelationAction(c *gin.Context) {
 
 		// 关注关系表添加
 		if err := tx.Create(&models.UserFollowRelation{
-			UserID:       user.ID,
+			UserID:       userID,
 			FollowUserID: toUserID,
 			IsFriend:     isFollowEachOther,
 		}).Error; err != nil {
@@ -73,7 +73,7 @@ func RelationAction(c *gin.Context) {
 
 		//关注者数据更新
 		user.FollowCount++ //关注总数增加
-		err = tx.Save(&user).Error
+		err := tx.Save(&user).Error
 		if err != nil {
 			tx.Rollback()
 			c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: err.Error()})
@@ -91,59 +91,54 @@ func RelationAction(c *gin.Context) {
 			return
 		}
 		tx.Commit()
-		// 更新缓存
-		usersLoginInfo[token] = user
 		c.JSON(http.StatusOK, Response{StatusCode: 0})
 		return
 	}
 	// 取关
 	if actionType == "2" {
+		// 是否已经关注
+		var userFollow models.UserFollowRelation
+		err := global.DB.Where("user_id = ? AND follow_user_id = ?", userID, toUserID).First(&userFollow).Error
+		if err != nil {
+			c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: "您还未关注，无法取关"})
+			return
+		}
+
 		// 开启事务
 		tx := global.DB.Begin()
-
-		//判断两者是不是好友
-		var IsFriend models.UserFollowRelation
-		if err := tx.Where("user_id = ? AND follow_user_id = ? AND is_friend = true", toUserID, user.ID).First(&IsFriend).Error; err == nil {
-			// 互关则为好友
-			err := tx.Model(&IsFriend).Update("is_friend", false).Error
-			if err != nil {
-				tx.Rollback()
-				c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: err.Error()})
-				return
-			}
-		}
-
-		// 删除关注关系表
+		// a -> b
+		//判断a和b是不是互关 如果是互关则删除好友关系
 		var userFollowRelation models.UserFollowRelation
-		err := tx.Where("user_id = ? AND follow_user_id = ?", user.ID, toUserID).Delete(&userFollowRelation).Error
-		if err != nil {
+		err = tx.Where("user_id = ? AND follow_user_id = ?", toUserID, userID).First(&userFollowRelation).Error
+		if err == nil {
+			// 互关则删除好友关系
+			tx.Model(&userFollowRelation).Update("is_friend", false)
+		}
+		// 关注关系表删除
+		if err := tx.Delete(&userFollow).Error; err != nil {
 			tx.Rollback()
 			c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: err.Error()})
 			return
 		}
-
-		//关注者数据更新
+		//关注者(当前用户)数据更新
 		user.FollowCount-- //关注总数减少
-		err = tx.Save(&user).Error
+		err = tx.Model(&user).Update("follow_count", user.FollowCount).Error
 		if err != nil {
 			tx.Rollback()
 			c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: err.Error()})
 			return
 		}
-
-		//被关注用户粉丝数增加
+		//被关注用户粉丝数减少
 		var followed models.User
 		tx.Where("id = ?", toUserID).First(&followed)
-		followed.FollowerCount-- //粉丝数增加
-		err = tx.Save(&followed).Error
+		followed.FollowerCount-- //粉丝数减少
+		err = tx.Model(&followed).Update("follower_count", followed.FollowerCount).Error
 		if err != nil {
 			tx.Rollback()
 			c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: err.Error()})
 			return
 		}
 		tx.Commit()
-		// 更新缓存
-		usersLoginInfo[token] = user
 		c.JSON(http.StatusOK, Response{StatusCode: 0})
 		return
 	}
@@ -152,14 +147,8 @@ func RelationAction(c *gin.Context) {
 
 // FollowList 返回用户关注列表
 func FollowList(c *gin.Context) {
-	tk := c.Query("token")
-	_, exist := usersLoginInfo[tk]
-	if !exist {
-		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: "请先登录"})
-		return
-	}
-	userID := c.Query("user_id")
 
+	userID := c.Query("user_id")
 	var userFollowRelation []models.UserFollowRelation
 	if err := global.DB.Where("user_id = ?", userID).Find(&userFollowRelation).Error; err != nil {
 		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: err.Error()})
@@ -197,12 +186,6 @@ func FollowList(c *gin.Context) {
 
 // FollowerList 返回用户粉丝列表
 func FollowerList(c *gin.Context) {
-	tk := c.Query("token")
-	_, exist := usersLoginInfo[tk]
-	if !exist {
-		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: "请先登录"})
-		return
-	}
 	userID := c.Query("user_id")
 	var userFollowers []models.UserFollowRelation
 	// follow_user_id 为被关注者id 以此查找其粉丝
@@ -241,14 +224,8 @@ func FollowerList(c *gin.Context) {
 	})
 }
 
-// FriendList all users have same friend list
+// FriendList 返回好友列表
 func FriendList(c *gin.Context) {
-	tk := c.Query("token")
-	_, exist := usersLoginInfo[tk]
-	if !exist {
-		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: "请先登录"})
-		return
-	}
 	userID := c.Query("user_id")
 	var friends []models.UserFollowRelation
 	if err := global.DB.Where("user_id = ? AND is_friend = true", userID).Find(&friends).Error; err != nil {

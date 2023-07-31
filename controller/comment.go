@@ -22,18 +22,16 @@ type CommentActionResponse struct {
 
 // CommentAction no practical effect, just check if token is valid
 func CommentAction(c *gin.Context) {
-	token := c.Query("token")
-	user, exist := usersLoginInfo[token]
-	if !exist {
-		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: "用户未登录，请先登录系统!"})
-		return
-	}
+
 	actionType := c.Query("action_type")
 	vid := c.Query("video_id")
 	videoID, _ := strconv.ParseInt(vid, 10, 64)
 	tx := global.DB.Begin()
 	var video models.Video
 	tx.Where("id = ?", videoID).First(&video)
+	// 获取当前登录用户
+	var user models.User
+	tx.Where("id = ?", 1).First(&user)
 	if actionType == "1" {
 		text := c.Query("comment_text")
 		var comment models.Comment
@@ -65,11 +63,7 @@ func CommentAction(c *gin.Context) {
 
 // CommentList all videos have same demo comment list
 func CommentList(c *gin.Context) {
-	token := c.Query("token")
-	if _, exist := usersLoginInfo[token]; !exist {
-		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: "用户未登录，请先登录系统!"})
-		return
-	}
+
 	videoID := c.Query("video_id")
 
 	// 从数据库中读取评论信息

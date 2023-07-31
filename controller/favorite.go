@@ -1,11 +1,13 @@
 package controller
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/Crazypointer/simple-tok/global"
 	"github.com/Crazypointer/simple-tok/models"
+	"github.com/Crazypointer/simple-tok/utils"
 	"github.com/gin-gonic/gin"
 )
 
@@ -16,54 +18,42 @@ type FavoriteListResponse struct {
 
 // FavoriteAction 为视频点赞
 func FavoriteAction(c *gin.Context) {
-	token := c.Query("token")
-	if _, exist := usersLoginInfo[token]; !exist {
-		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: "用户未登录，请先登录系统!"})
-		return
-	}
+
+	_claims, _ := c.Get("claims")
+	claims := _claims.(*utils.CustomClaims)
+
 	//1. 获取视频id 和 点赞类型: 1 点赞 2 取消点赞
 	vid := c.Query("video_id")
 	videoID, _ := strconv.ParseInt(vid, 10, 64)
 	actionType := c.Query("action_type")
 
-	userID := usersLoginInfo[token].ID
-	//2. 获取数据
+	userID := claims.UserID
 
-	tx := global.DB.Begin()
-
-	var video models.Video
-	if err := tx.Where("id = ?", videoID).First(&video).Error; err != nil {
-		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: err.Error()})
-		return
-	}
-
-	var author models.User //视频作者
-	if err := tx.Where("id = ?", video.AuthorID).First(&author).Error; err != nil {
-		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: err.Error()})
-		return
-	}
-
-	var user models.User //当前登录用户
-	if err := tx.Where("id = ?", userID).First(&user).Error; err != nil {
-		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: err.Error()})
-		return
-	}
-
-	// 判断用户是否已经点赞 默认没有点赞
+	// 查询视频点赞表 判断用户是否已经点赞 默认没有点赞
 	isFavorite := false
-	//查询视频点赞表
 	var favorite models.UserFavoriteVideo
-	err := tx.Where("user_id = ? AND video_id = ?", userID, videoID).First(&favorite).Error
+	err := global.DB.Where("user_id = ? AND video_id = ?", userID, videoID).First(&favorite).Error
 	if err == nil {
 		//如果有查询到记录，说明用户点赞过
 		isFavorite = true
 	}
 
+	//2. 获取数据
+	tx := global.DB.Begin()
+	var video models.Video
+	tx.Where("id = ?", videoID).First(&video)
+
+	var author models.User //视频作者
+	tx.Where("id = ?", video.AuthorID).First(&author)
+
+	var user models.User //当前登录用户
+	tx.Where("id = ?", userID).First(&user)
 	//根据点赞类型，进行不同的操作
 	if actionType == "1" {
+		fmt.Println("点赞: ", isFavorite)
 		if isFavorite {
 			tx.Commit()
-			c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: "已经点赞过了"})
+			c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: "已经点赞过了，无法重复点赞"})
 			return
 		}
 		video.FavoriteCount++
@@ -71,14 +61,14 @@ func FavoriteAction(c *gin.Context) {
 		author.TotalFavorited++
 		// 用户喜欢数+1
 		user.FavoriteCount++
-		//创建关联表
+		//关联表添加记录
 		favorite.UserID = userID
 		favorite.VideoID = videoID
 		tx.Create(&favorite)
 	} else if actionType == "2" {
 		if !isFavorite {
 			tx.Commit()
-			c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: "还没有点赞过"})
+			c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: "还没有点赞过，无法取消点赞"})
 			return
 		}
 		video.FavoriteCount--
@@ -93,33 +83,28 @@ func FavoriteAction(c *gin.Context) {
 	}
 
 	//3. 更新信息
-	if err := tx.Save(&video).Error; err != nil {
-		// 发生错误时回滚事务
+	if err := tx.Model(&video).Update("favorite_count", video.FavoriteCount).Error; err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: err.Error()})
-
-	} else if err := tx.Save(&author).Error; err != nil {
-		tx.Rollback()
-		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: err.Error()})
-	} else if err := tx.Save(&user).Error; err != nil {
-		tx.Rollback()
-		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: err.Error()})
-	} else {
-		// 提交事务
-		tx.Commit()
-		c.JSON(http.StatusOK, Response{StatusCode: 0})
+		return
 	}
+	if err := tx.Model(&author).Update("total_favorited", author.TotalFavorited).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: err.Error()})
+		return
+	}
+	if err := tx.Model(&user).Update("favorite_count", user.FavoriteCount).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: err.Error()})
+		return
+	}
+	tx.Commit()
+	c.JSON(http.StatusOK, Response{StatusCode: 0})
 }
 
 // FavoriteList all users have same favorite video list
 func FavoriteList(c *gin.Context) {
-	//1. 获取token
-	token := c.Query("token")
-	if _, exist := usersLoginInfo[token]; !exist {
-		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: "用户未登录，请先登录系统!"})
-		return
-	}
-	//2. 获取用户id
+	// 获取用户id
 	userId := c.Query("user_id")
 	userID, err := strconv.ParseInt(userId, 10, 64)
 	if err != nil {
@@ -133,7 +118,7 @@ func FavoriteList(c *gin.Context) {
 		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: err.Error()})
 		return
 	}
-	//3. 根据视频id查询视频信息
+	// 根据视频id查询视频信息
 	var videos []models.Video
 	for _, favoriteVideo := range favoriteVideos {
 		var video models.Video

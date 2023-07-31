@@ -1,13 +1,12 @@
 package controller
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/Crazypointer/simple-tok/global"
 	"github.com/Crazypointer/simple-tok/models"
+	"github.com/Crazypointer/simple-tok/utils"
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 // usersLoginInfo use map to store user info, and key is username+password for demo
@@ -25,11 +24,9 @@ func Register(c *gin.Context) {
 	username := c.Query("username")
 	password := c.Query("password")
 
-	token := username + password
-
 	// 判断数据库中是否存在该用户
-	err := global.DB.Where("name = ?", username).First(&models.User{})
-	if err == nil {
+	count := global.DB.Where("name = ?", username).First(&models.User{}).RowsAffected
+	if count != 0 {
 		c.JSON(http.StatusOK, UserLoginResponse{
 			Response: Response{StatusCode: 1, StatusMsg: "User already exist"},
 		})
@@ -51,13 +48,29 @@ func Register(c *gin.Context) {
 		}
 		// 将用户信息存入数据库
 		global.DB.Create(&newUser)
+		//生成token
+		token, err := utils.GenToken(utils.JwtPayLoad{
+			UserID:          newUser.ID,
+			Name:            newUser.Name,
+			Avatar:          newUser.Avatar,
+			BackgroundImage: newUser.BackgroundImage,
+			FavoriteCount:   newUser.FavoriteCount,
+			FollowCount:     newUser.FollowCount,
+			FollowerCount:   newUser.FollowerCount,
+			Signature:       newUser.Signature,
+			TotalFavorited:  newUser.TotalFavorited,
+			WorkCount:       newUser.WorkCount,
+		})
+		if err != nil {
+			c.JSON(http.StatusOK, UserLoginResponse{
+				Response: Response{StatusCode: 1, StatusMsg: err.Error()},
+			})
+		}
 		c.JSON(http.StatusOK, UserLoginResponse{
 			Response: Response{StatusCode: 0},
 			UserID:   newUser.ID,
-			Token:    username + password,
+			Token:    token,
 		})
-		// TODO: 将用户信息存入内存 其实需要存入redis
-		usersLoginInfo[token] = newUser
 	}
 }
 
@@ -65,40 +78,55 @@ func Login(c *gin.Context) {
 	username := c.Query("username")
 	password := c.Query("password")
 
-	token := username + password
-
 	// 判断数据库中是否存在该用户
 	var user models.User
 	err := global.DB.Where("name = ?", username).First(&user).Error
 
-	if err == nil {
-		usersLoginInfo[token] = user
+	if err != nil {
 		c.JSON(http.StatusOK, UserLoginResponse{
-			Response: Response{StatusCode: 0},
-			UserID:   user.ID,
-			Token:    token,
+			Response: Response{StatusCode: 1, StatusMsg: "用户名或密码错误"},
 		})
-	} else if errors.Is(err, gorm.ErrRecordNotFound) {
+	}
+
+	if user.Password != password {
 		c.JSON(http.StatusOK, UserLoginResponse{
-			Response: Response{StatusCode: 1, StatusMsg: "User doesn't exist"},
+			Response: Response{StatusCode: 1, StatusMsg: "用户名或密码错误"},
 		})
-	} else {
+		return
+	}
+	//生成token
+	token, err := utils.GenToken(utils.JwtPayLoad{
+		UserID:          user.ID,
+		Name:            user.Name,
+		Avatar:          user.Avatar,
+		BackgroundImage: user.BackgroundImage,
+		FavoriteCount:   user.FavoriteCount,
+		FollowCount:     user.FollowCount,
+		FollowerCount:   user.FollowerCount,
+		Signature:       user.Signature,
+		TotalFavorited:  user.TotalFavorited,
+		WorkCount:       user.WorkCount,
+	})
+
+	if err != nil {
 		c.JSON(http.StatusOK, UserLoginResponse{
 			Response: Response{StatusCode: 1, StatusMsg: err.Error()},
 		})
 	}
+
+	c.JSON(http.StatusOK, UserLoginResponse{
+		Response: Response{StatusCode: 0},
+		UserID:   user.ID,
+		Token:    token,
+	})
 }
 
 func UserInfo(c *gin.Context) {
-	token := c.Query("token")
-	userID := c.Query("user_id")
-	_, exist := usersLoginInfo[token]
-	if !exist {
-		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: "请先登录"})
-		return
-	}
-	var user models.User
+	_claims, _ := c.Get("claims")
+	claims := _claims.(*utils.CustomClaims)
 
+	userID := c.Query("user_id")
+	var user models.User
 	if err := global.DB.Where("id = ?", userID).First(&user).Error; err != nil {
 		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: err.Error()})
 		return
@@ -106,7 +134,7 @@ func UserInfo(c *gin.Context) {
 	// 判断是否关注
 	var follow models.UserFollowRelation
 	var isFollow bool
-	if err := global.DB.Where("user_id = ? AND follow_user_id = ?", usersLoginInfo[token].ID, userID).First(&follow).Error; err == nil {
+	if err := global.DB.Where("user_id = ? AND follow_user_id = ?", claims.ID, userID).Find(&follow).Error; err == nil {
 		isFollow = true
 	} else {
 		isFollow = false

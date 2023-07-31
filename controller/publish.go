@@ -21,13 +21,10 @@ type VideoListResponse struct {
 
 // Publish check token then save upload file to public directory
 func Publish(c *gin.Context) {
-	token := c.PostForm("token")
+	_claims, _ := c.Get("claims")
+	claims := _claims.(*utils.CustomClaims)
 
-	if _, exist := usersLoginInfo[token]; !exist {
-		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: "User doesn't exist"})
-		return
-	}
-
+	title := c.PostForm("title")
 	data, err := c.FormFile("data")
 	if err != nil {
 		c.JSON(http.StatusOK, Response{
@@ -36,12 +33,11 @@ func Publish(c *gin.Context) {
 		})
 		return
 	}
-	user := usersLoginInfo[token]
 	filename := filepath.Base(data.Filename)
 	//获取当前时间
 	now := time.Duration(time.Now().UnixNano())
 	// 生成文件名
-	finalName := fmt.Sprintf("%d_%d_%s", user.ID, now, filename)
+	finalName := fmt.Sprintf("%d_%d_%s", claims.UserID, now, filename)
 	fmt.Println("finalName:", finalName)
 
 	playUrl := ""
@@ -96,9 +92,11 @@ func Publish(c *gin.Context) {
 	}
 	// 将视频信息存入数据库
 	newVideo := models.Video{
-		AuthorID: user.ID,
+		Title:    title,
+		AuthorID: claims.UserID,
 		PlayUrl:  playUrl,
 		HashTag:  videoHash,
+		CoverUrl: "https://cdn.pixabay.com/photo/2023/06/02/10/06/nature-8035211_1280.jpg",
 	}
 	global.DB.Create(&newVideo)
 	c.JSON(http.StatusOK, Response{
@@ -107,20 +105,8 @@ func Publish(c *gin.Context) {
 	})
 }
 
-// PublishList all users have same publish video list
+// PublishList 用户发布的视频列表
 func PublishList(c *gin.Context) {
-
-	token := c.Query("token") // 用于鉴权
-	// 鉴权
-	_, exist := usersLoginInfo[token]
-	if !exist {
-		c.JSON(http.StatusOK, Response{
-			StatusCode: 1,
-			StatusMsg:  "User doesn't exist",
-		})
-		return
-	}
-
 	userID := c.Query("user_id")
 	var videos []models.Video
 	global.DB.Where("author_id", userID).Find(&videos)

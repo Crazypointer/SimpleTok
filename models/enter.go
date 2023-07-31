@@ -44,8 +44,8 @@ type UserFollowRelation struct {
 
 // UserFavoriteVideo  记录用户id与视频id的对应关系 用来判断是否点赞
 type UserFavoriteVideo struct {
-	UserID  int64 `gorm:"primary_key"`
-	VideoID int64
+	UserID  int64 `gorm:"not null"` // 用户id
+	VideoID int64 `gorm:"not null"`
 }
 
 type Message struct {

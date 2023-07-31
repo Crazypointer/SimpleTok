@@ -10,6 +10,7 @@ import (
 
 	"github.com/Crazypointer/simple-tok/global"
 	"github.com/Crazypointer/simple-tok/models"
+	"github.com/Crazypointer/simple-tok/utils"
 	"github.com/gin-gonic/gin"
 )
 
@@ -26,23 +27,18 @@ type ChatResponse struct {
 
 // MessageAction 发送消息
 func MessageAction(c *gin.Context) {
-	token := c.Query("token")
 	toUserId := c.Query("to_user_id")
 	content := c.Query("content")
-
-	user, exist := usersLoginInfo[token]
-	if !exist {
-		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: "用户不存在，请重新登录"})
-		return
-	}
-
+	_claims, _ := c.Get("claims")
+	claims := _claims.(*utils.CustomClaims)
+	userID := claims.UserID
 	userIdB, _ := strconv.Atoi(toUserId)
-	chatKey := genChatKey(user.ID, int64(userIdB))
+	chatKey := genChatKey(userID, int64(userIdB))
 
 	curMessage := models.Message{
 		Content:    content,
 		CreateTime: time.Now().Unix(),
-		FromUserID: user.ID,
+		FromUserID: userID,
 		ToUserID:   int64(userIdB),
 	}
 	//写入数据库
@@ -56,7 +52,6 @@ func MessageAction(c *gin.Context) {
 		fmt.Println(err)
 		return
 	}
-	fmt.Println(string(curMessageStr))
 	//将聊天记录存入redis
 	global.Redis.LPush(chatKey, curMessageStr)
 	c.JSON(http.StatusOK, Response{StatusCode: 0})
@@ -65,18 +60,15 @@ func MessageAction(c *gin.Context) {
 
 // MessageChat 聊天记录
 func MessageChat(c *gin.Context) {
-	token := c.Query("token")
+
+	_claims, _ := c.Get("claims")
+	claims := _claims.(*utils.CustomClaims)
+	userID := claims.UserID
 	toUserId := c.Query("to_user_id")
 	pmt := c.Query("pre_msg_time")
-	fmt.Println(pmt)
-	user, exist := usersLoginInfo[token]
-	if !exist {
-		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: "用户不存在，请重新登录"})
-		return
-	}
 
 	userIdB, _ := strconv.Atoi(toUserId)
-	chatKey := genChatKey(user.ID, int64(userIdB))
+	chatKey := genChatKey(userID, int64(userIdB))
 
 	// 从redis中获取聊天记录
 	msgListInRedis, err := global.Redis.LRange(chatKey, 0, -1).Result()
@@ -89,7 +81,7 @@ func MessageChat(c *gin.Context) {
 	if len(msgListInRedis) == 0 {
 		// 查询数据库
 		var msgListInDB []models.Message
-		global.DB.Where("from_user_id = ? and to_user_id = ?", user.ID, userIdB).Or("from_user_id = ? and to_user_id = ?", userIdB, user.ID).Order("create_time desc").Find(&msgListInDB)
+		global.DB.Where("from_user_id = ? and to_user_id = ?", userID, userIdB).Or("from_user_id = ? and to_user_id = ?", userIdB, userID).Order("create_time desc").Find(&msgListInDB)
 		// 将聊天记录存入redis
 		for _, msg := range msgListInDB {
 			//将message对象转换为json字符串
