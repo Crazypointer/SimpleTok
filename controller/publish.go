@@ -1,11 +1,17 @@
 package controller
 
 import (
+	"bytes"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/disintegration/imaging"
+	ffmpeg "github.com/u2takey/ffmpeg-go"
 
 	"github.com/Crazypointer/simple-tok/global"
 	"github.com/Crazypointer/simple-tok/models"
@@ -39,9 +45,7 @@ func Publish(c *gin.Context) {
 	// 生成文件名
 	finalName := fmt.Sprintf("%d_%d_%s", claims.UserID, now, filename)
 	fmt.Println("finalName:", finalName)
-
 	playUrl := ""
-	fmt.Println("playUrl:", playUrl)
 	// 计算Hash值
 	// 读取文件内容
 	f, err := data.Open()
@@ -62,7 +66,6 @@ func Publish(c *gin.Context) {
 	}
 
 	videoHash := utils.Md5(byteData)
-	//TODO: 校验Hash值，数据库中存储Hash值，防止重复上传
 	// 查询数据库中是否存在该Hash值
 	var video models.Video
 	err = global.DB.Where("hash_tag = ?", videoHash).First(&video).Error
@@ -74,10 +77,18 @@ func Publish(c *gin.Context) {
 		})
 		return
 	}
+	coverStr, err := GetVideoCover(byteData)
+	if err != nil {
+		c.JSON(http.StatusOK, Response{
+			StatusCode: 1,
+			StatusMsg:  err.Error(),
+		})
+		return
+	}
 
 	// 本地存储
 	if global.Config.Local.Enable {
-		saveFile := filepath.Join("./public/", finalName)
+		saveFile := filepath.Join("./storage/", finalName)
 		if err := c.SaveUploadedFile(data, saveFile); err != nil {
 			c.JSON(http.StatusOK, Response{
 				StatusCode: 1,
@@ -90,15 +101,23 @@ func Publish(c *gin.Context) {
 		// 上传到COS
 		playUrl = service.Upload2Cos(data, finalName)
 	}
+
 	// 将视频信息存入数据库
 	newVideo := models.Video{
 		Title:    title,
 		AuthorID: claims.UserID,
 		PlayUrl:  playUrl,
 		HashTag:  videoHash,
-		CoverUrl: "https://cdn.pixabay.com/photo/2023/06/02/10/06/nature-8035211_1280.jpg",
+		CoverUrl: coverStr,
 	}
-	global.DB.Create(&newVideo)
+	tx := global.DB.Begin()
+	tx.Create(&newVideo)
+	//用户作品数+1
+	var user models.User
+	tx.Where("id = ?", claims.UserID).First(&user)
+	user.WorkCount++
+	tx.Save(&user)
+	tx.Commit()
 	c.JSON(http.StatusOK, Response{
 		StatusCode: 0,
 		StatusMsg:  playUrl + " uploaded successfully",
@@ -143,4 +162,47 @@ func PublishList(c *gin.Context) {
 		},
 		VideoList: videoList,
 	})
+}
+func GetVideoCover(videoData []byte) (string, error) {
+	// 设置图像文件存放路径
+	now := time.Now().Unix()
+	imagePath := fmt.Sprintf("./storage/%d.jpg", now)
+	// 将视频字节数组写入临时文件
+	tmpFile, err := os.CreateTemp("", "temp_video*.mp4")
+	if err != nil {
+		panic(err)
+	}
+	defer tmpFile.Close()
+	defer os.Remove(tmpFile.Name())
+
+	if _, err := tmpFile.Write(videoData); err != nil {
+		panic(err)
+	}
+
+	buf := bytes.NewBuffer(nil)
+	err = ffmpeg.Input(tmpFile.Name()).
+		Filter("select", ffmpeg.Args{fmt.Sprintf("gte(n,%d)", 1)}).
+		Output("pipe:", ffmpeg.KwArgs{"vframes": 1, "format": "image2", "vcodec": "mjpeg"}).
+		WithOutput(buf, os.Stdout).
+		Run()
+	if err != nil {
+		panic(err)
+	}
+	if err != nil {
+		log.Fatal("生成缩略图失败：", err)
+		return "", err
+	}
+
+	img, err := imaging.Decode(buf)
+	if err != nil {
+		log.Fatal("生成缩略图失败：", err)
+		return "", err
+	}
+
+	err = imaging.Save(img, imagePath)
+	if err != nil {
+		log.Fatal("生成缩略图失败：", err)
+		return "", err
+	}
+	return global.Config.Server.BaseUrl + fmt.Sprintf("/static/%d.jpg", now), nil
 }

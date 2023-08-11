@@ -7,7 +7,7 @@
 工程无其他依赖，直接编译运行即可
 
 ```shell
-go build && ./simple-demo
+go build && ./simple-tok
 
 m1芯片开发 进行交叉编译成Linux amd64版本
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build
@@ -18,7 +18,7 @@ CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build
 接口功能不完善，仅作为示例
 
 * 用户登录数据保存在内存中，单次运行过程中有效
-* 视频上传后会保存到本地 public 目录中，访问时用 127.0.0.1:8080/static/video_name 即可
+* 视频上传后会保存到本地 storage 目录中，访问时用 127.0.0.1:8080/static/video_name 即可
 
 ### 测试
 

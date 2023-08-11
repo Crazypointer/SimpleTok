@@ -1,11 +1,13 @@
 package controller
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/Crazypointer/simple-tok/global"
 	"github.com/Crazypointer/simple-tok/models"
 	"github.com/Crazypointer/simple-tok/utils"
+	"github.com/NebulousLabs/fastrand"
 	"github.com/gin-gonic/gin"
 )
 
@@ -32,7 +34,7 @@ func Register(c *gin.Context) {
 		})
 	} else {
 		//为新用户创建随机头像
-		avatar := "https://picsum.photos/200"
+		avatar := GenAvatar()
 		// 用户背景图
 		background := "https://picsum.photos/seed/picsum/200/300"
 
@@ -153,4 +155,7 @@ func UserInfo(c *gin.Context) {
 		IsFollow:        isFollow,
 	}
 	c.JSON(http.StatusOK, UserResponse{Response: Response{StatusCode: 0}, User: userRes})
+}
+func GenAvatar() string {
+	return fmt.Sprintf("https://q.qlogo.cn/headimg_dl?dst_uin=%d&spec=64&img_type=jpg", 200000000+fastrand.Intn(999999999))
 }
