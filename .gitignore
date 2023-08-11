@@ -24,3 +24,4 @@ go.work
 .vscode
 simple-demo
 .DS_Store
+./storage

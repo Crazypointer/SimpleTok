@@ -8,9 +8,13 @@ import (
 )
 
 func initRouter(r *gin.Engine) {
+	// 配置cors
+	r.Use(middleware.CORSMiddleware())
+
 	// storage directory is used to serve static resources
 	r.Static("/static", "./storage")
 
+	// api router group
 	apiRouter := r.Group("/douyin")
 
 	// basic apis
