@@ -4,8 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
-	"mime/multipart"
+	"log"
 	"net/http"
 	"net/url"
 
@@ -39,21 +38,13 @@ func FindBucket(c *cos.Client) (*cos.Bucket, error) {
 }
 
 // 上传文件到cos
-func Upload2Cos(file *multipart.FileHeader, filename string) string {
+func Upload2Cos(buf *bytes.Buffer, filename string) string {
 	//新建client
 	client := NewClient()
-	//读取文件
-	var buf bytes.Buffer
-	f, err := file.Open()
-	if err != nil {
-		fmt.Println(err)
-		return "文件打开失败"
-	}
-	io.Copy(&buf, f)
 	//上传文件
-	_, err = client.Object.Put(context.Background(), filename, &buf, nil)
+	_, err := client.Object.Put(context.Background(), filename, buf, nil)
 	if err != nil {
-		fmt.Println(err)
+		log.Fatal("文件上传失败：", err)
 		return "上传失败"
 	}
 	return global.Config.Cos.CosUrl + "/" + filename

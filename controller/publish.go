@@ -77,7 +77,6 @@ func Publish(c *gin.Context) {
 		})
 		return
 	}
-	coverStr, err := GetVideoCover(byteData)
 	if err != nil {
 		c.JSON(http.StatusOK, Response{
 			StatusCode: 1,
@@ -85,6 +84,20 @@ func Publish(c *gin.Context) {
 		})
 		return
 	}
+	//读取视频文件
+	var buf bytes.Buffer
+	f, err = data.Open()
+	if err != nil {
+		fmt.Println(err)
+		c.JSON(http.StatusOK, Response{
+			StatusCode: 1,
+			StatusMsg:  err.Error(),
+		})
+		return
+	}
+	io.Copy(&buf, f)
+	// 视频封面
+	coverStr, err := GetVideoCover(byteData)
 
 	// 本地存储
 	if global.Config.Local.Enable {
@@ -99,7 +112,7 @@ func Publish(c *gin.Context) {
 		playUrl = global.Config.Server.BaseUrl + "/static/" + finalName
 	} else {
 		// 上传到COS
-		playUrl = service.Upload2Cos(data, finalName)
+		playUrl = service.Upload2Cos(&buf, finalName)
 	}
 
 	// 将视频信息存入数据库
@@ -179,11 +192,11 @@ func GetVideoCover(videoData []byte) (string, error) {
 		panic(err)
 	}
 
-	buf := bytes.NewBuffer(nil)
+	imgBuf := bytes.NewBuffer(nil)
 	err = ffmpeg.Input(tmpFile.Name()).
 		Filter("select", ffmpeg.Args{fmt.Sprintf("gte(n,%d)", 1)}).
 		Output("pipe:", ffmpeg.KwArgs{"vframes": 1, "format": "image2", "vcodec": "mjpeg"}).
-		WithOutput(buf, os.Stdout).
+		WithOutput(imgBuf, os.Stdout).
 		Run()
 	if err != nil {
 		panic(err)
@@ -193,16 +206,22 @@ func GetVideoCover(videoData []byte) (string, error) {
 		return "", err
 	}
 
-	img, err := imaging.Decode(buf)
+	img, err := imaging.Decode(imgBuf)
 	if err != nil {
 		log.Fatal("生成缩略图失败：", err)
 		return "", err
 	}
 
-	err = imaging.Save(img, imagePath)
-	if err != nil {
-		log.Fatal("生成缩略图失败：", err)
-		return "", err
+	if global.Config.Local.Enable {
+		err = imaging.Save(img, imagePath)
+		if err != nil {
+			log.Fatal("生成缩略图失败：", err)
+			return "", err
+		}
+		return global.Config.Server.BaseUrl + fmt.Sprintf("/static/%d.jpg", now), nil
 	}
-	return global.Config.Server.BaseUrl + fmt.Sprintf("/static/%d.jpg", now), nil
+	// cos上传
+	coverUrl := service.Upload2Cos(imgBuf, fmt.Sprintf("%d.jpg", now))
+	return coverUrl, nil
+
 }
